@@ -1,0 +1,49 @@
+name: Update Balance
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # 每30分钟执行一次
+  workflow_dispatch:          # 允许手动触发
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Fetch SOL balance
+        run: |
+          node -e "
+            const fs = require('fs');
+            const axios = require('axios');
+            (async () => {
+              try {
+                const url = 'https://public-api.solscan.io/account/A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88';
+                const res = await axios.get(url);
+                const balance = res.data.lamports / 1e9;
+                const data = { balance: balance.toFixed(3), updated: new Date().toISOString() };
+                fs.writeFileSync('balance.json', JSON.stringify(data, null, 2));
+              } catch (err) {
+                console.error(err);
+                process.exit(1);
+              }
+            })();
+          "
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add balance.json
+          git commit -m "Update balance [skip ci]" || echo "No changes to commit"
+          git push
