@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SOL Balance Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #161b22;
+      padding: 15px;
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: bold;
+      border-bottom: 1px solid #30363d;
+    }
+    main {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 80vh;
+      flex-direction: column;
+    }
+    .card {
+      background: #21262d;
+      padding: 20px 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+    .value {
+      font-size: 2rem;
+      margin: 10px 0;
+      color: #58a6ff;
+    }
+    .updated {
+      font-size: 0.9rem;
+      color: #8b949e;
+    }
+  </style>
+</head>
+<body>
+  <header>SOL Balance Dashboard</header>
+  <main>
+    <div class="card">
+      <div id="solBalance" class="value">Loading...</div>
+      <div id="lastUpdated" class="updated"></div>
+    </div>
+  </main>
+
+  <script>
+    async function fetchSolBalance() {
+      try {
+        const response = await fetch('balance.json'); // 从仓库根目录读取
+        const data = await response.json();
+
+        document.getElementById('solBalance').innerText = `${data.balance} SOL`;
+        document.getElementById('lastUpdated').innerText = `Last updated: ${new Date(data.updated).toLocaleString()}`;
+      } catch (error) {
+        document.getElementById('solBalance').innerText = 'Error loading balance';
+        document.getElementById('lastUpdated').innerText = '';
+      }
+    }
+
+    fetchSolBalance();
+  </script>
+</body>
+</html>
