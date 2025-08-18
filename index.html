@@ -225,7 +225,29 @@
         }
       }
     });
-
+    
+    async function fetchSolBalance() {
+      const resp = await fetch('https://api.mainnet-beta.solana.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'getBalance',
+          params: ['A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88', { commitment: 'finalized' }]
+        })
+      });
+      
+      const json = await resp.json();
+      const lamports = json.result.value;
+      const sol = (lamports / 1e9).toFixed(3); // 转换成SOL，保留3位小数
+      
+      document.getElementById('sol-balance').innerText = `${sol} SOL`;
+    }
+    
+    // 页面加载后调用
+    fetchSolBalance();
+    
     // 暗黑模式切换
     function toggleDarkMode() {
       document.body.classList.toggle('dark-mode');
