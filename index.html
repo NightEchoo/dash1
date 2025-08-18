@@ -1,74 +1,235 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SOL Balance Dashboard</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #0d1117;
-      color: #c9d1d9;
+      background: #f5f6fa;
       margin: 0;
       padding: 0;
+      transition: background 0.3s, color 0.3s;
     }
-    header {
-      background: #161b22;
-      padding: 15px;
-      text-align: center;
-      font-size: 1.2rem;
-      font-weight: bold;
-      border-bottom: 1px solid #30363d;
-    }
-    main {
+
+    /* 顶部导航栏 */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: #3b82f6;
+      color: white;
       display: flex;
-      justify-content: center;
       align-items: center;
-      height: 80vh;
-      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px 24px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      z-index: 1000;
     }
+
+    .navbar .logo {
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .navbar .links {
+      display: flex;
+      gap: 20px;
+    }
+
+    .navbar .links a {
+      color: white;
+      text-decoration: none;
+      font-size: 14px;
+      transition: opacity 0.3s;
+    }
+
+    .navbar .links a:hover {
+      opacity: 0.8;
+    }
+
+    .toggle-btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: white;
+      color: #3b82f6;
+      font-weight: bold;
+    }
+
+    /* 内容区整体往下偏移，避免被导航栏遮住 */
+    .content {
+      padding: 100px 20px 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
     .card {
-      background: #21262d;
-      padding: 20px 30px;
-      border-radius: 12px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      text-align: center;
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      transition: background 0.3s, color 0.3s;
     }
+
+    .title {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+
     .value {
-      font-size: 2rem;
-      margin: 10px 0;
-      color: #58a6ff;
+      font-size: 32px;
+      font-weight: bold;
     }
-    .updated {
-      font-size: 0.9rem;
-      color: #8b949e;
+
+    .positive {
+      color: #16a34a;
+      font-size: 14px;
+    }
+
+    .progress-bar {
+      background: #e5e7eb;
+      border-radius: 10px;
+      overflow: hidden;
+      height: 12px;
+      margin-top: 10px;
+    }
+
+    .progress {
+      background: #3b82f6;
+      height: 12px;
+    }
+
+    /* 暗黑模式 */
+    .dark-mode {
+      background: #1f2937;
+      color: #f9fafb;
+    }
+
+    .dark-mode .card {
+      background: #374151;
+      color: #f9fafb;
+    }
+
+    .dark-mode .title {
+      color: #d1d5db;
+    }
+
+    .dark-mode .navbar {
+      background: #111827;
+    }
+
+    .dark-mode .toggle-btn {
+      background: #3b82f6;
+      color: white;
     }
   </style>
 </head>
 <body>
-  <header>SOL Balance Dashboard</header>
-  <main>
-    <div class="card">
-      <div id="solBalance" class="value">Loading...</div>
-      <div id="lastUpdated" class="updated"></div>
+  <!-- 顶部导航栏 -->
+  <div class="navbar">
+    <div class="logo">📊 Dashboard</div>
+    <div class="links">
+      <a href="#">首页</a>
+      <a href="#">数据</a>
+      <a href="#">报告</a>
     </div>
-  </main>
+    <button class="toggle-btn" onclick="toggleDarkMode()">🌙 切换模式</button>
+  </div>
 
+  <!-- 页面内容 -->
+  <div class="content">
+    <div class="grid">
+      <div class="card">
+        <div class="title">Now</div>
+        <div class="value">$3,757</div>
+        <div class="positive">环比上周 ▲20.57%</div>
+      </div>
+
+      <div class="card">
+        <div class="title">周发布视频数</div>
+        <div class="value">11</div>
+        <div class="positive">环比上周 ▲1</div>
+      </div>
+
+      <div class="card">
+        <div class="title">Rate</div>
+        <canvas id="pieChart" height="150"></canvas>
+      </div>
+
+      <div class="card">
+        <div class="title">Everyday</div>
+        <div class="value">62.50%</div>
+        <div class="progress-bar">
+          <div class="progress" style="width:62.5%"></div>
+        </div>
+        <div class="title">当前 25 | 目标 40</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+      <div class="title">7days变化</div>
+      <canvas id="barChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- 脚本 -->
   <script>
-    async function fetchSolBalance() {
-      try {
-        const response = await fetch('balance.json'); // 从仓库根目录读取
-        const data = await response.json();
-
-        document.getElementById('solBalance').innerText = `${data.balance} SOL`;
-        document.getElementById('lastUpdated').innerText = `Last updated: ${new Date(data.updated).toLocaleString()}`;
-      } catch (error) {
-        document.getElementById('solBalance').innerText = 'Error loading balance';
-        document.getElementById('lastUpdated').innerText = '';
+    // 饼图
+    const ctx1 = document.getElementById('pieChart').getContext('2d');
+    new Chart(ctx1, {
+      type: 'pie',
+      data: {
+        labels: ['DE: 6', 'LS: 5'],
+        datasets: [{
+          data: [6, 5],
+          backgroundColor: ['#06b6d4', '#3b82f6']
+        }]
       }
-    }
+    });
 
-    fetchSolBalance();
+    // 柱状图 + 折线图
+    const ctx2 = document.getElementById('barChart').getContext('2d');
+    new Chart(ctx2, {
+      data: {
+        labels: ['7/27-8/2','8/3-8/9','8/10-8/16'],
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Living Stone',
+            data: [87600, 97600, 86700],
+            backgroundColor: '#3b82f6'
+          },
+          {
+            type: 'line',
+            label: 'Living Stone CTR',
+            data: [9.7, 9.63, 9.52],
+            borderColor: '#f97316',
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        scales: {
+          y: { beginAtZero: true, max: 100000 },
+          y1: { beginAtZero: true, position: 'right', max: 10 }
+        }
+      }
+    });
+
+    // 暗黑模式切换
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+    }
   </script>
 </body>
 </html>
