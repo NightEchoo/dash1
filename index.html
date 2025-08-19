@@ -1,257 +1,104 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f6fa;
-      margin: 0;
-      padding: 0;
-      transition: background 0.3s, color 0.3s;
-    }
-
-    /* 顶部导航栏 */
-    .navbar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      background: #3b82f6;
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 24px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      z-index: 1000;
-    }
-
-    .navbar .logo {
-      font-size: 20px;
-      font-weight: bold;
-    }
-
-    .navbar .links {
-      display: flex;
-      gap: 20px;
-    }
-
-    .navbar .links a {
-      color: white;
-      text-decoration: none;
-      font-size: 14px;
-      transition: opacity 0.3s;
-    }
-
-    .navbar .links a:hover {
-      opacity: 0.8;
-    }
-
-    .toggle-btn {
-      padding: 6px 12px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      background: white;
-      color: #3b82f6;
-      font-weight: bold;
-    }
-
-    /* 内容区整体往下偏移，避免被导航栏遮住 */
-    .content {
-      padding: 100px 20px 20px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
-    }
-
-    .card {
-      background: white;
-      border-radius: 16px;
-      padding: 20px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-      transition: background 0.3s, color 0.3s;
-    }
-
-    .title {
-      font-size: 14px;
-      color: #888;
-      margin-bottom: 6px;
-    }
-
-    .value {
-      font-size: 32px;
-      font-weight: bold;
-    }
-
-    .positive {
-      color: #16a34a;
-      font-size: 14px;
-    }
-
-    .progress-bar {
-      background: #e5e7eb;
-      border-radius: 10px;
-      overflow: hidden;
-      height: 12px;
-      margin-top: 10px;
-    }
-
-    .progress {
-      background: #3b82f6;
-      height: 12px;
-    }
-
-    /* 暗黑模式 */
-    .dark-mode {
-      background: #1f2937;
-      color: #f9fafb;
-    }
-
-    .dark-mode .card {
-      background: #374151;
-      color: #f9fafb;
-    }
-
-    .dark-mode .title {
-      color: #d1d5db;
-    }
-
-    .dark-mode .navbar {
-      background: #111827;
-    }
-
-    .dark-mode .toggle-btn {
-      background: #3b82f6;
-      color: white;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:20px; transition:background 0.3s, color 0.3s; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:20px; }
+.card { background:white; border-radius:16px; padding:20px; box-shadow:0 4px 10px rgba(0,0,0,0.05); transition:background 0.3s, color 0.3s; }
+.title { font-size:14px; color:#888; margin-bottom:6px; }
+.value { font-size:32px; font-weight:bold; }
+.positive { color:#16a34a; font-size:14px; }
+.dark-mode { background:#1f2937; color:#f9fafb; }
+.dark-mode .card { background:#374151; color:#f9fafb; }
+.dark-mode .title { color:#d1d5db; }
+.toggle-btn { position:fixed; top:20px; right:20px; padding:8px 16px; border:none; border-radius:8px; cursor:pointer; background:#3b82f6; color:white; }
+</style>
 </head>
 <body>
-  <!-- 顶部导航栏 -->
-  <div class="navbar">
-    <div class="logo">📊 Dashboard</div>
-    <div class="links">
-      <a href="#">首页</a>
-      <a href="#">数据</a>
-      <a href="#">报告</a>
-    </div>
-    <button class="toggle-btn" onclick="toggleDarkMode()">🌙 切换模式</button>
+<button class="toggle-btn" onclick="toggleDarkMode()">🌙 切换模式</button>
+
+<div class="grid">
+  <!-- Now 卡片 -->
+  <div class="card">
+    <div class="title">Now</div>
+    <div class="value" id="sol-balance">Loading...</div>
+    <div class="positive" id="sol-usd">...</div>
   </div>
 
-  <!-- 页面内容 -->
-  <div class="content">
-    <div class="grid">
-      <div class="card">
-        <div class="title">Now</div>
-        <div class="value" id="sol-balance">Loading...</div>
-        <div class="positive">环比上周 ▲20.57%</div>
-      </div>
-
-      <div class="card">
-        <div class="title">周发布视频数</div>
-        <div class="value">11</div>
-        <div class="positive">环比上周 ▲1</div>
-      </div>
-
-      <div class="card">
-        <div class="title">Rate</div>
-        <canvas id="pieChart" height="150"></canvas>
-      </div>
-
-      <div class="card">
-        <div class="title">Everyday</div>
-        <div class="value">62.50%</div>
-        <div class="progress-bar">
-          <div class="progress" style="width:62.5%"></div>
-        </div>
-        <div class="title">当前 25 | 目标 40</div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:20px;">
-      <div class="title">7days变化</div>
-      <canvas id="barChart" height="200"></canvas>
-    </div>
+  <!-- 七天余额变化折线图 -->
+  <div class="card" style="grid-column: span 2;">
+    <div class="title">7天余额变化</div>
+    <canvas id="balanceChart" height="200"></canvas>
   </div>
+</div>
 
-  <!-- 脚本 -->
-  <script>
-    // 饼图
-    const ctx1 = document.getElementById('pieChart').getContext('2d');
-    new Chart(ctx1, {
-      type: 'pie',
-      data: {
-        labels: ['DE: 6', 'LS: 5'],
-        datasets: [{
-          data: [6, 5],
-          backgroundColor: ['#06b6d4', '#3b82f6']
-        }]
-      }
-    });
+<script>
+const WALLET_ADDRESS = 'A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88';
+const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067';
 
-    // 柱状图 + 折线图
-    const ctx2 = document.getElementById('barChart').getContext('2d');
-    new Chart(ctx2, {
-      data: {
-        labels: ['7/27-8/2','8/3-8/9','8/10-8/16'],
-        datasets: [
-          {
-            type: 'bar',
-            label: 'Living Stone',
-            data: [87600, 97600, 86700],
-            backgroundColor: '#3b82f6'
-          },
-          {
-            type: 'line',
-            label: 'Living Stone CTR',
-            data: [9.7, 9.63, 9.52],
-            borderColor: '#f97316',
-            yAxisID: 'y1'
-          }
-        ]
-      },
-      options: {
-        scales: {
-          y: { beginAtZero: true, max: 100000 },
-          y1: { beginAtZero: true, position: 'right', max: 10 }
-        }
-      }
-    });
-    
-    async function fetchSolBalance() {
-      const resp = await fetch('https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'getBalance',
-          params: ['A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88', { commitment: 'finalized' }]
-        })
-      });
-    
-      const json = await resp.json();
-      const lamports = json.result.value;
-      const sol = (lamports / 1e9).toFixed(3);
-      
-      document.getElementById('sol-balance').innerText = `${sol} SOL`;
+// 获取当前余额并显示
+async function fetchSolBalance() {
+  const resp = await fetch(RPC_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'getBalance',
+      params: [WALLET_ADDRESS, { commitment: 'finalized' }]
+    })
+  });
+  const json = await resp.json();
+  const lamports = json.result.value;
+  const sol = (lamports / 1e9).toFixed(3);
+  document.getElementById('sol-balance').innerText = `${sol} SOL`;
+
+  // 获取 SOL-USD 价格
+  const priceResp = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+  const priceData = await priceResp.json();
+  const usd = (sol * priceData.solana.usd).toFixed(2);
+  document.getElementById('sol-usd').innerText = `$${usd}`;
+}
+
+// 绘制七天折线图
+async function drawBalanceChart() {
+  const resp = await fetch('balances.json'); // GitHub Pages 上的 JSON 文件
+  const data = await resp.json();
+
+  const labels = data.map(item => item.date);
+  const values = data.map(item => item.sol);
+
+  const ctx = document.getElementById('balanceChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'SOL余额',
+        data: values,
+        borderColor: '#3b82f6',
+        fill: false,
+        tension: 0.2
+      }]
+    },
+    options: {
+      scales: { y: { beginAtZero: false } }
     }
-    
-    // 页面加载后调用
-    fetchSolBalance();
-    
-    // 暗黑模式切换
-    function toggleDarkMode() {
-      document.body.classList.toggle('dark-mode');
-    }
-  </script>
+  });
+}
+
+// 页面加载
+fetchSolBalance();
+drawBalanceChart();
+
+// 可选：每 30 秒刷新当前余额
+setInterval(fetchSolBalance, 30000);
+
+function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
+</script>
 </body>
 </html>
