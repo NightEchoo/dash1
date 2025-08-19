@@ -151,7 +151,7 @@
     <div class="grid">
       <div class="card">
         <div class="title">Now</div>
-        <div class="value">$3,757</div>
+        <div class="value" id="sol-balance">Loading...</div>
         <div class="positive">环比上周 ▲20.57%</div>
       </div>
 
@@ -227,7 +227,7 @@
     });
     
     async function fetchSolBalance() {
-      const resp = await fetch('https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067', {
+      const resp = await fetch('https://mainnet.helius-rpc.com/?api-key=你的APIKEY', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -240,7 +240,7 @@
     
       const json = await resp.json();
       const lamports = json.result.value;
-      const sol = (lamports / 1e9).toFixed(3); // 转换成 SOL，保留3位小数
+      const sol = (lamports / 1e9).toFixed(3);
       
       document.getElementById('sol-balance').innerText = `${sol} SOL`;
     }
