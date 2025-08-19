@@ -169,11 +169,26 @@ async function fetchSolBalance() {
   }
 
   // 计算目标进度
+  // 获取今天早上7点的数据
   const todayRecord = balances[balances.length - 1]; // 最新一条记录 = 今天早上7点的数据
-  const target = (todayRecord.sol * 1.1).toFixed(3); // 目标 = 当前 + 10%
-  const progressPercent = Math.min((sol / target) * 100, 100).toFixed(1); // 进度百分比
+  const morningBalance = parseFloat(todayRecord.sol);
+  
+  // 当天目标 = 早上7点余额 * 1.1
+  const target = (morningBalance * 1.1).toFixed(3);
+  
+  // 当前实时余额
+  const currentSol = parseFloat(sol);
+  
+  // 计算增量进度百分比
+  let progressPercent = ((currentSol - morningBalance) / (target - morningBalance) * 100).toFixed(1);
+  
+  // 保证进度条至少显示0%，超过目标可以>100%
+  progressPercent = Math.max(progressPercent, 0);
+  
+  // 更新进度条显示
   document.getElementById('sol-progress').style.width = progressPercent + '%';
   document.getElementById('sol-progress-text').innerText = `${progressPercent}% (目标: ${target} SOL)`;
+
 }
 
 // 绘制七天折线图
