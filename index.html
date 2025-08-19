@@ -227,14 +227,25 @@
     });
     
     async function fetchSolBalance() {
-      const resp = await fetch('https://public-api.solscan.io/account/detail?address=A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88');
+      const resp = await fetch('https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'getBalance',
+          params: ['A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88', { commitment: 'finalized' }]
+        })
+      });
+    
       const json = await resp.json();
-      const lamports = json.lamports;
-      const sol = (lamports / 1e9).toFixed(3);
+      const lamports = json.result.value;
+      const sol = (lamports / 1e9).toFixed(3); // 转换成 SOL，保留3位小数
+      
       document.getElementById('sol-balance').innerText = `${sol} SOL`;
     }
     
-    // 页面加载时调用
+    // 页面加载后调用
     fetchSolBalance();
     
     // 暗黑模式切换
