@@ -169,7 +169,8 @@ async function fetchSolBalance() {
   }
 
   // 计算目标进度
-  const target = (parseFloat(sol) * 1.1).toFixed(3);  // 目标 = 当前 + 10%
+  const todayRecord = balances[balances.length - 1]; // 最新一条记录 = 今天早上7点的数据
+  const target = (todayRecord.sol * 1.1).toFixed(3); // 目标 = 当前 + 10%
   const progressPercent = Math.min((sol / target) * 100, 100).toFixed(1); // 进度百分比
   document.getElementById('sol-progress').style.width = progressPercent + '%';
   document.getElementById('sol-progress-text').innerText = `${progressPercent}% (目标: ${target} SOL)`;
