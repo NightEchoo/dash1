@@ -156,8 +156,8 @@ async function fetchSolBalance() {
 
   const balanceResp = await fetch('balances.json');
   const balances = await balanceResp.json();
-  const yesterday = balances[balances.length - 2]?.sol || sol;
-  const changePercent = (((sol - yesterday) / yesterday) * 100).toFixed(2);
+  const todaysol = balances[balances.length - 1]?.sol || sol;
+  const changePercent = (((sol - todaysol) / todaysol) * 100).toFixed(2);
 
   const changeEl = document.getElementById('sol-change');
   if (changePercent >= 0) {
