@@ -13,7 +13,7 @@ jobs:
 
       - name: Fetch current SOL balance
         run: |
-          BALANCE=$(curl -s -X POST https://mainnet.helius-rpc.com/?api-key=你的APIKEY \
+          BALANCE=$(curl -s -X POST https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067 \
             -H "Content-Type: application/json" \
             -d '{"jsonrpc":"2.0","id":1,"method":"getBalance","params":["A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88"]}' \
             | jq '.result.value/1000000000')
