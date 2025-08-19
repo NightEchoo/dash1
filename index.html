@@ -11,10 +11,12 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:20p
 .card { background:white; border-radius:16px; padding:20px; box-shadow:0 4px 10px rgba(0,0,0,0.05); transition:background 0.3s, color 0.3s; }
 .title { font-size:14px; color:#888; margin-bottom:6px; }
 .value { font-size:32px; font-weight:bold; }
+.usd-text { font-size:14px; color:#888; margin-left:6px; }  /* 新增：USD 显示小字号、灰色 */
 .positive { color:#16a34a; font-size:14px; }
 .dark-mode { background:#1f2937; color:#f9fafb; }
 .dark-mode .card { background:#374151; color:#f9fafb; }
 .dark-mode .title { color:#d1d5db; }
+.dark-mode .usd-text { color:#9ca3af; } /* 暗色模式下更浅一点 */
 .toggle-btn { position:fixed; top:20px; right:20px; padding:8px 16px; border:none; border-radius:8px; cursor:pointer; background:#3b82f6; color:white; }
 </style>
 </head>
@@ -44,7 +46,6 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:20p
   
   // 获取当前余额并显示
   async function fetchSolBalance() {
-    // 获取当前余额
     const resp = await fetch(RPC_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -64,13 +65,15 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:20p
     const priceData = await priceResp.json();
     const usd = (sol * priceData.solana.usd).toFixed(2);
   
-    // 更新 Now 卡片显示 SOL + USD
-    document.getElementById('sol-balance').innerText = `${sol} SOL ($${usd})`;
+    // 更新 Now 卡片显示 SOL + USD（USD 用小字号灰色）
+    document.getElementById('sol-balance').innerHTML = `
+      ${sol} SOL <span class="usd-text">($${usd})</span>
+    `;
   
     // 获取昨天的余额，计算环比百分比
     const balanceResp = await fetch('balances.json');
     const balances = await balanceResp.json();
-    const yesterday = balances[balances.length - 2]?.sol || sol; // 倒数第二条为昨天
+    const yesterday = balances[balances.length - 2]?.sol || sol;
     const changePercent = (((sol - yesterday) / yesterday) * 100).toFixed(2);
   
     const changeText = changePercent >= 0 ? `环比昨日 ▲${changePercent}%` : `环比昨日 ▼${Math.abs(changePercent)}%`;
@@ -79,7 +82,7 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:20p
   
   // 绘制七天折线图
   async function drawBalanceChart() {
-    const resp = await fetch('balances.json'); // GitHub Pages 上的 JSON 文件
+    const resp = await fetch('balances.json');
     const data = await resp.json();
   
     const labels = data.map(item => item.date);
@@ -108,7 +111,7 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:20p
   fetchSolBalance();
   drawBalanceChart();
   
-  // 可选：每 30 秒刷新当前余额
+  // 每 30 秒刷新当前余额
   setInterval(fetchSolBalance, 30000);
   
   function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
