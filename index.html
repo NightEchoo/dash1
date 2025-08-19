@@ -179,8 +179,9 @@ async function fetchSolBalance() {
 async function drawBalanceChart() {
   const resp = await fetch('balances.json');
   const data = await resp.json();
+
   const labels = data.map(item => item.date);
-  const values = data.map(item => item.sol);
+  const values = data.map(item => parseFloat(item.sol).toFixed(3)); // 保留3位小数
 
   const ctx = document.getElementById('balanceChart').getContext('2d');
   new Chart(ctx, {
@@ -192,12 +193,31 @@ async function drawBalanceChart() {
         data: values,
         borderColor: '#3b82f6',
         fill: false,
-        tension: 0.3
+        tension: 0.2
       }]
     },
-    options: { scales: { y: { beginAtZero: false } } }
+    options: {
+      scales: {
+        y: {
+          beginAtZero: false,
+          ticks: {
+            callback: function(value) { return parseFloat(value).toFixed(3); } // y轴刻度保留3位小数
+          }
+        }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return context.dataset.label + ': ' + parseFloat(context.raw).toFixed(3);
+            }
+          }
+        }
+      }
+    }
   });
 }
+
 
 fetchSolBalance();
 drawBalanceChart();
