@@ -23,10 +23,12 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:20p
 
 <div class="grid">
   <!-- Now 卡片 -->
-  <div class="card">
+    <div class="card">
     <div class="title">Now</div>
+    <!-- sol-balance 显示 SOL + USD -->
     <div class="value" id="sol-balance">Loading...</div>
-    <div class="positive" id="sol-usd">...</div>
+    <!-- sol-usd 改为显示环比百分比 -->
+    <div class="positive" id="sol-change">...</div>
   </div>
 
   <!-- 七天余额变化折线图 -->
@@ -37,68 +39,79 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:20p
 </div>
 
 <script>
-const WALLET_ADDRESS = 'A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88';
-const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067';
-
-// 获取当前余额并显示
-async function fetchSolBalance() {
-  const resp = await fetch(RPC_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'getBalance',
-      params: [WALLET_ADDRESS, { commitment: 'finalized' }]
-    })
-  });
-  const json = await resp.json();
-  const lamports = json.result.value;
-  const sol = (lamports / 1e9).toFixed(3);
-  document.getElementById('sol-balance').innerText = `${sol} SOL`;
-
-  // 获取 SOL-USD 价格
-  const priceResp = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
-  const priceData = await priceResp.json();
-  const usd = (sol * priceData.solana.usd).toFixed(2);
-  document.getElementById('sol-usd').innerText = `$${usd}`;
-}
-
-// 绘制七天折线图
-async function drawBalanceChart() {
-  const resp = await fetch('balances.json'); // GitHub Pages 上的 JSON 文件
-  const data = await resp.json();
-
-  const labels = data.map(item => item.date);
-  const values = data.map(item => item.sol);
-
-  const ctx = document.getElementById('balanceChart').getContext('2d');
-  new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'SOL余额',
-        data: values,
-        borderColor: '#3b82f6',
-        fill: false,
-        tension: 0.2
-      }]
-    },
-    options: {
-      scales: { y: { beginAtZero: false } }
-    }
-  });
-}
-
-// 页面加载
-fetchSolBalance();
-drawBalanceChart();
-
-// 可选：每 30 秒刷新当前余额
-setInterval(fetchSolBalance, 30000);
-
-function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
+  const WALLET_ADDRESS = 'A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88';
+  const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067';
+  
+  // 获取当前余额并显示
+  async function fetchSolBalance() {
+    // 获取当前余额
+    const resp = await fetch(RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'getBalance',
+        params: [WALLET_ADDRESS, { commitment: 'finalized' }]
+      })
+    });
+    const json = await resp.json();
+    const lamports = json.result.value;
+    const sol = (lamports / 1e9).toFixed(3);
+  
+    // 获取 SOL-USD 价格
+    const priceResp = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+    const priceData = await priceResp.json();
+    const usd = (sol * priceData.solana.usd).toFixed(2);
+  
+    // 更新 Now 卡片显示 SOL + USD
+    document.getElementById('sol-balance').innerText = `${sol} SOL ($${usd})`;
+  
+    // 获取昨天的余额，计算环比百分比
+    const balanceResp = await fetch('balances.json');
+    const balances = await balanceResp.json();
+    const yesterday = balances[balances.length - 2]?.sol || sol; // 倒数第二条为昨天
+    const changePercent = (((sol - yesterday) / yesterday) * 100).toFixed(2);
+  
+    const changeText = changePercent >= 0 ? `环比昨日 ▲${changePercent}%` : `环比昨日 ▼${Math.abs(changePercent)}%`;
+    document.getElementById('sol-change').innerText = changeText;
+  }
+  
+  // 绘制七天折线图
+  async function drawBalanceChart() {
+    const resp = await fetch('balances.json'); // GitHub Pages 上的 JSON 文件
+    const data = await resp.json();
+  
+    const labels = data.map(item => item.date);
+    const values = data.map(item => item.sol);
+  
+    const ctx = document.getElementById('balanceChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'SOL余额',
+          data: values,
+          borderColor: '#3b82f6',
+          fill: false,
+          tension: 0.2
+        }]
+      },
+      options: {
+        scales: { y: { beginAtZero: false } }
+      }
+    });
+  }
+  
+  // 页面加载
+  fetchSolBalance();
+  drawBalanceChart();
+  
+  // 可选：每 30 秒刷新当前余额
+  setInterval(fetchSolBalance, 30000);
+  
+  function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
 </script>
 </body>
 </html>
