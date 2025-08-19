@@ -1,0 +1,36 @@
+name: Update SOL Balance
+on:
+  schedule:
+    # 每天 UTC 23:00 = 北京时间 7:00
+    - cron: '0 23 * * *'
+  workflow_dispatch:
+
+jobs:
+  update_balance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Fetch current SOL balance
+        run: |
+          BALANCE=$(curl -s -X POST https://mainnet.helius-rpc.com/?api-key=你的APIKEY \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","id":1,"method":"getBalance","params":["A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88"]}' \
+            | jq '.result.value/1000000000')
+
+          DATE=$(date +'%Y-%m-%d')
+          echo "{\"date\": \"$DATE\", \"sol\": $BALANCE}" > today.json
+
+      - name: Update balances.json
+        run: |
+          # 合并到原来的 balances.json，只保留最近 7 天
+          jq -s '.[0] + [.[1]] | sort_by(.date) | reverse | .[0:7] | reverse' balances.json today.json > balances_tmp.json
+          mv balances_tmp.json balances.json
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add balances.json
+          git commit -m "Update SOL balance for $DATE" || echo "No changes"
+          git push
