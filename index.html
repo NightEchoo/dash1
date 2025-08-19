@@ -6,41 +6,116 @@
 <title>Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:20px; transition:background 0.3s, color 0.3s; }
-.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:20px; }
-.card { background:white; border-radius:16px; padding:20px; box-shadow:0 4px 10px rgba(0,0,0,0.05); transition:background 0.3s, color 0.3s; }
-.title { font-size:14px; color:#888; margin-bottom:6px; }
-.value { font-size:32px; font-weight:bold; }
-.usd-text { font-size:14px; color:#888; margin-left:6px; }  /* USD 小号灰色 */
+body {
+  font-family: Arial, sans-serif;
+  background:#f5f6fa;
+  margin:0;
+  padding:0;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* 顶部导航栏 */
+.navbar {
+  position: fixed;
+  top:0; left:0; right:0;
+  height:60px;
+  background:#3b82f6;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 20px;
+  color:white;
+  z-index: 1000;
+}
+.navbar .logo {
+  font-weight:bold;
+  font-size:18px;
+}
+.navbar .title {
+  font-size:18px;
+  font-weight:500;
+}
+.navbar .toggle-btn {
+  padding:6px 12px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  background:#2563eb;
+  color:white;
+}
+
+/* 页面内容下移，避免被 navbar 遮挡 */
+.content {
+  padding:80px 20px 20px 20px;
+}
+
+.grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+  gap:20px;
+}
+
+.card {
+  background:white;
+  border-radius:16px;
+  padding:20px;
+  box-shadow:0 4px 10px rgba(0,0,0,0.05);
+  transition:background 0.3s, color 0.3s;
+}
+
+.card .title {
+  font-size:14px;
+  color:#888;
+  margin-bottom:6px;
+}
+
+.value {
+  font-size:32px;
+  font-weight:bold;
+}
+
+.usd-text {
+  font-size:14px;
+  color:#888;
+  margin-left:6px;
+}
+
 .positive { color:#16a34a; font-size:14px; }
 .negative { color:red; font-size:14px; }
+
 .dark-mode { background:#1f2937; color:#f9fafb; }
 .dark-mode .card { background:#374151; color:#f9fafb; }
-.dark-mode .title { color:#d1d5db; }
-.dark-mode .usd-text { color:#9ca3af; } /* 暗色模式下灰色更浅 */
-.toggle-btn { position:fixed; top:20px; right:20px; padding:8px 16px; border:none; border-radius:8px; cursor:pointer; background:#3b82f6; color:white; }
+.dark-mode .card .title { color:#d1d5db; }
+.dark-mode .usd-text { color:#9ca3af; }
 
-/* 手机屏幕下强制所有卡片单列 */
 @media (max-width: 600px) {
   .grid > .card { grid-column: span 1 !important; }
 }
 </style>
 </head>
 <body>
-<button class="toggle-btn" onclick="toggleDarkMode()">🌙 切换模式</button>
 
-<div class="grid">
-  <!-- Now 卡片 -->
-  <div class="card">
-    <div class="title">Now</div>
-    <div class="value" id="sol-balance">Loading...</div>
-    <div id="sol-change">...</div>
-  </div>
+<!-- 顶部导航栏 -->
+<div class="navbar">
+  <div class="logo">🌐 Logo</div>
+  <div class="title">SOL Wallet Dashboard</div>
+  <button class="toggle-btn" onclick="toggleDarkMode()">🌙</button>
+</div>
 
-  <!-- 七天余额变化折线图 -->
-  <div class="card" style="grid-column: span 2;">
-    <div class="title">7天余额变化</div>
-    <canvas id="balanceChart" height="200"></canvas>
+<div class="content">
+  <div class="grid">
+    <!-- Now 卡片 -->
+    <div class="card">
+      <div class="title">Now</div>
+      <div class="value" id="sol-balance">Loading...</div>
+      <div id="sol-change">...</div>
+    </div>
+
+    <!-- 七天余额变化折线图 -->
+    <div class="card" style="grid-column: span 2;">
+      <div class="title">7天余额变化</div>
+      <canvas id="balanceChart" height="200"></canvas>
+    </div>
   </div>
 </div>
 
@@ -64,16 +139,13 @@ async function fetchSolBalance() {
   const lamports = json.result.value;
   const sol = (lamports / 1e9).toFixed(3);
 
-  // 获取 SOL-USD 价格
   const priceResp = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
   const priceData = await priceResp.json();
   const usd = (sol * priceData.solana.usd).toFixed(2);
 
-  // 显示 SOL + USD
   document.getElementById('sol-balance').innerHTML = `${sol} SOL <span class="usd-text">($${usd})</span>`;
 
-  // 计算环比变化
-  const balanceResp = await fetch('balances.json'); // JSON 文件存储每日余额
+  const balanceResp = await fetch('balances.json');
   const balances = await balanceResp.json();
   const yesterday = balances[balances.length - 2]?.sol || sol;
   const changePercent = (((sol - yesterday) / yesterday) * 100).toFixed(2);
@@ -112,14 +184,12 @@ async function drawBalanceChart() {
   });
 }
 
-// 页面加载
 fetchSolBalance();
 drawBalanceChart();
-
-// 每 30 秒刷新当前余额
 setInterval(fetchSolBalance, 30000);
 
 function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
 </script>
+
 </body>
 </html>
