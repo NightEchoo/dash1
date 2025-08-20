@@ -136,7 +136,7 @@ const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14
 async function fetchSolBalance() {
   let fallbackData = null;
 
-  // 读取本地缓存
+  // 先读取缓存 balance.json
   try {
     const balanceResp = await fetch('balance.json');
     fallbackData = await balanceResp.json();
@@ -150,7 +150,7 @@ async function fetchSolBalance() {
     console.warn("无法加载 balance.json，本地无缓存");
   }
 
-  // 再拉实时数据
+  // 拉实时数据
   try {
     const resp = await fetch(RPC_URL, {
       method: 'POST',
@@ -163,26 +163,40 @@ async function fetchSolBalance() {
       })
     });
     const json = await resp.json();
-    const lamports = json.result.value;
-    const sol = (lamports / 1e9).toFixed(3);
+    const sol = (json.result.value / 1e9).toFixed(3);
 
     const priceResp = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
     const priceData = await priceResp.json();
     const usd = (sol * priceData.solana.usd).toFixed(2);
 
-    const now = new Date();
-    const updatedStr = now.toLocaleString('zh-CN', { hour12: false });
-
+    const now = new Date().toLocaleString('zh-CN', { hour12: false });
     document.getElementById('sol-balance').innerHTML =
       `${sol} SOL <span class="usd-text">($${usd})</span>`;
-    document.getElementById('sol-change').innerText = `实时更新: ${updatedStr}`;
 
-    // 计算进度条
+    // ✅ 计算环比变化
     try {
       const balancesResp = await fetch('balances.json');
       const balances = await balancesResp.json();
-      const todayRecord = balances[balances.length - 1];
-      const morningBalance = parseFloat(todayRecord.sol);
+      const todaysol = parseFloat(balances[balances.length - 1]?.sol || sol);
+      const yesterdaysol = parseFloat(balances[balances.length - 2]?.sol || sol);
+      const changePercent = (((todaysol - yesterdaysol) / yesterdaysol) * 100).toFixed(2);
+      const changeEl = document.getElementById('sol-change');
+      if (changePercent >= 0) {
+        changeEl.className = 'positive';
+        changeEl.innerText = `环比昨日 ▲${changePercent}%`;
+      } else {
+        changeEl.className = 'negative';
+        changeEl.innerText = `环比昨日 ▼${Math.abs(changePercent)}%`;
+      }
+    } catch(e) {
+      console.warn("环比计算失败", e);
+    }
+
+    // 进度条逻辑保持不变
+    try {
+      const balancesResp = await fetch('balances.json');
+      const balances = await balancesResp.json();
+      const morningBalance = parseFloat(balances[balances.length - 1]?.sol || sol);
       const target = (morningBalance * 1.1).toFixed(3);
       const currentSol = parseFloat(sol);
       let progressPercent = ((currentSol - morningBalance) / (target - morningBalance) * 100).toFixed(1);
@@ -197,6 +211,7 @@ async function fetchSolBalance() {
     console.error("实时查询失败，继续显示缓存", err);
   }
 }
+
 
 // 绘制七天折线图
 async function drawBalanceChart() {
