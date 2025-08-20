@@ -90,7 +90,7 @@ function updateBalanceUI(sol, usd, updated, morningBalance) {
   const target = (morningBalance * 1.1).toFixed(3);
   let progressPercent = ((sol - morningBalance)/(target - morningBalance) * 100).toFixed(1);
   if (!isFinite(progressPercent)) progressPercent = 0;
-  progressPercent = Math.max(0, Math.min(100, progressPercent));
+  progressPercent = Math.max(0, progressPercent);
   document.getElementById('sol-progress').style.width = progressPercent + '%';
   document.getElementById('sol-progress-text').innerText = `${progressPercent}% (目标: ${target} SOL)`;
 }
