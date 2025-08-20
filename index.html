@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -36,6 +36,7 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:0; 
 
 <div class="content">
   <div class="grid">
+    <!-- 余额 -->
     <div class="card">
       <div class="title">Sol Balance</div>
       <div class="value" id="sol-balance">Loading...</div>
@@ -43,6 +44,7 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:0; 
       <button id="refresh-btn" style="margin-top:10px; padding:6px 12px; border:none; border-radius:6px; background:#3b82f6; color:white; cursor:pointer;">刷新</button>
     </div>
 
+    <!-- 进度条 -->
     <div class="card">
       <div class="title">每日 10% 目标</div>
       <div class="progress-bar" style="background:#e5e7eb; border-radius:10px; overflow:hidden; height:12px; margin-top:6px;">
@@ -51,9 +53,11 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:0; 
       <div id="sol-progress-text" style="font-size:12px; color:#888; margin-top:4px;">...</div>
     </div>
 
+    <!-- 折线图 -->
     <div class="card" style="grid-column: span 2;">
       <div class="title">7天余额变化</div>
       <canvas id="balanceChart" height="200"></canvas>
+      <div id="ring-change" style="margin-top:10px;font-size:14px;"></div>
     </div>
   </div>
 </div>
@@ -61,43 +65,41 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:0; 
 <script>
 const WALLET_ADDRESS = 'A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88';
 const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067';
-
 const refreshBtn = document.getElementById('refresh-btn');
+
 refreshBtn.addEventListener('click', () => {
   fetchSolBalance();
   drawBalanceChart();
 });
 
-// 使用 LocalStorage 显示缓存
+// 显示 LocalStorage 的缓存数据
 function loadFromLocalStorage() {
   try {
     const cached = JSON.parse(localStorage.getItem('balanceData'));
     if (cached) {
-      const currentSol = parseFloat(cached.balance);
-      const usd = parseFloat(cached.usd);
-      const updated = cached.updated;
-      document.getElementById('sol-balance').innerHTML = `${currentSol} SOL <span class="usd-text">($${usd})</span>`;
-      document.getElementById('sol-change').innerText = `上次更新: ${updated}`;
-
-      // 进度条
-      const morningBalance = parseFloat(cached.morningBalance || currentSol);
-      const target = (morningBalance * 1.1).toFixed(3);
-      let progressPercent = ((currentSol - morningBalance)/(target - morningBalance) * 100).toFixed(1);
-      if (!isFinite(progressPercent)) progressPercent = 0;
-      document.getElementById('sol-progress').style.width = progressPercent + '%';
-      document.getElementById('sol-progress-text').innerText = `${progressPercent}% (目标: ${target} SOL)`;
+      updateBalanceUI(cached.balance, cached.usd, cached.updated, cached.morningBalance);
     }
-  } catch(e) {
-    console.warn("LocalStorage 无缓存", e);
-  }
+  } catch(e) { console.warn("LocalStorage 无缓存", e); }
 }
 
-// 拉取 balance.json 并更新 LocalStorage
+// 更新余额 UI + 进度条
+function updateBalanceUI(sol, usd, updated, morningBalance) {
+  document.getElementById('sol-balance').innerHTML = `${sol} SOL <span class="usd-text">($${usd})</span>`;
+  document.getElementById('sol-change').innerText = `上次更新: ${updated}`;
+
+  const target = (morningBalance * 1.1).toFixed(3);
+  let progressPercent = ((sol - morningBalance)/(target - morningBalance) * 100).toFixed(1);
+  if (!isFinite(progressPercent)) progressPercent = 0;
+  progressPercent = Math.max(0, Math.min(100, progressPercent));
+  document.getElementById('sol-progress').style.width = progressPercent + '%';
+  document.getElementById('sol-progress-text').innerText = `${progressPercent}% (目标: ${target} SOL)`;
+}
+
+// 从 balance.json 获取缓存数据
 async function fetchBalanceJson() {
   try {
-    const resp = await fetch('balance.json');
+    const resp = await fetch('balance.json?' + Date.now());
     const data = await resp.json();
-    // 更新 LocalStorage
     localStorage.setItem('balanceData', JSON.stringify(data));
     return data;
   } catch(e) {
@@ -106,77 +108,52 @@ async function fetchBalanceJson() {
   }
 }
 
-// 拉实时 SOL 和 USD
+// 实时拉取 SOL & USD
 async function fetchSolBalance() {
   let fallback = await fetchBalanceJson();
-
-  // 先用缓存展示
-  if(fallback){
-    document.getElementById('sol-balance').innerHTML =
-      `${fallback.balance} SOL <span class="usd-text">($${fallback.usd})</span>`;
-  }
+  if (fallback) updateBalanceUI(fallback.balance, fallback.usd, fallback.updated, fallback.morningBalance || fallback.balance);
 
   try {
+    // 查询链上余额
     const resp = await fetch(RPC_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'getBalance',
-        params: [WALLET_ADDRESS, { commitment: 'finalized' }]
-      })
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [WALLET_ADDRESS, { commitment: 'finalized' }] })
     });
     const json = await resp.json();
     const sol = (json.result.value / 1e9).toFixed(3);
 
+    // 查询价格
     const priceResp = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
     const priceData = await priceResp.json();
     const usd = (sol * priceData.solana.usd).toFixed(2);
     const now = new Date().toLocaleString('zh-CN', { hour12:false });
 
-    // 更新界面
-    document.getElementById('sol-balance').innerHTML = `${sol} SOL <span class="usd-text">($${usd})</span>`;
-    document.getElementById('sol-change').innerText = `上次更新: ${now}`;
-
-    // 更新 LocalStorage
-    const balancesResp = await fetch('balances.json');
+    // 获取早晨余额
+    const balancesResp = await fetch('balances.json?' + Date.now());
     const balances = await balancesResp.json();
     const morningBalance = parseFloat(balances[balances.length-1]?.sol || sol);
-    localStorage.setItem('balanceData', JSON.stringify({
-      balance: sol,
-      usd: usd,
-      updated: now,
-      morningBalance: morningBalance
-    }));
 
-    // 进度条
-    const target = (morningBalance * 1.1).toFixed(3);
-    let progressPercent = ((sol - morningBalance)/(target - morningBalance) * 100).toFixed(1);
-    if(!isFinite(progressPercent)) progressPercent=0;
-    document.getElementById('sol-progress').style.width = progressPercent + '%';
-    document.getElementById('sol-progress-text').innerText = `${progressPercent}% (目标: ${target} SOL)`;
+    // 更新 UI & 缓存
+    updateBalanceUI(sol, usd, now, morningBalance);
+    localStorage.setItem('balanceData', JSON.stringify({ balance: sol, usd, updated: now, morningBalance }));
 
   } catch(e) {
     console.warn("实时查询失败，使用缓存", e);
   }
 }
 
-// 绘制七天折线图
+// 绘制余额折线图
 async function drawBalanceChart() {
   let data = null;
-  
-  // 先尝试从 LocalStorage 获取
   const cachedHistory = localStorage.getItem('balanceHistory');
   if (cachedHistory) {
     try { data = JSON.parse(cachedHistory); } 
     catch(e){ console.warn("LocalStorage折线数据解析失败", e); }
   }
-
-  // 如果 LocalStorage 没有，再 fetch balances.json
   if (!data) {
     try {
-      const resp = await fetch('balances.json');
+      const resp = await fetch('balances.json?' + Date.now());
       data = await resp.json();
       localStorage.setItem('balanceHistory', JSON.stringify(data));
     } catch(e){ console.warn("折线图数据加载失败", e); return; }
@@ -185,39 +162,29 @@ async function drawBalanceChart() {
   const labels = data.map(d => d.date);
   const values = data.map(d => parseFloat(d.sol).toFixed(3));
   const ctx = document.getElementById('balanceChart').getContext('2d');
-
-  // 清理之前图表（防止重复渲染）
   if (window.balanceChartInstance) window.balanceChartInstance.destroy();
 
   window.balanceChartInstance = new Chart(ctx, {
     type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'SOL余额',
-        data: values,
-        borderColor: '#3b82f6',
-        fill: false,
-        tension: 0.2
-      }]
-    },
+    data: { labels, datasets: [{ label: 'SOL余额', data: values, borderColor: '#3b82f6', fill: false, tension: 0.2 }] },
     options: {
-      scales: {
-        y: {
-          beginAtZero: false,
-          ticks: { callback: v => parseFloat(v).toFixed(3) }
-        }
-      },
-      plugins: {
-        tooltip: {
-          callbacks: { label: ctx => 'SOL余额: ' + parseFloat(ctx.raw).toFixed(3) }
-        }
-      }
+      scales: { y: { beginAtZero: false, ticks: { callback: v => parseFloat(v).toFixed(3) } } },
+      plugins: { tooltip: { callbacks: { label: ctx => 'SOL余额: ' + parseFloat(ctx.raw).toFixed(3) } } }
     }
   });
+
+  // 环比变化
+  if (values.length >= 2) {
+    const latest = parseFloat(values[values.length-1]);
+    const prev = parseFloat(values[values.length-2]);
+    const diffPercent = ((latest - prev) / prev * 100).toFixed(2);
+    document.getElementById("ring-change").innerText = diffPercent >= 0
+      ? `📈 较昨日增加 ${diffPercent}%`
+      : `📉 较昨日减少 ${Math.abs(diffPercent)}%`;
+  }
 }
 
-// 页面加载
+// 页面初始化
 loadFromLocalStorage();
 fetchSolBalance();
 drawBalanceChart();
