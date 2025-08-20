@@ -222,7 +222,35 @@ body {
     }
   }
   
+  async function updateFromCache() {
+    try {
+      const resp = await fetch('balance.json');
+      const data = await resp.json();
   
+      const sol = parseFloat(data.balance);
+      const usd = parseFloat(data.usd);
+      const updated = data.updated;
+  
+      // 显示余额
+      document.getElementById('sol-balance').innerHTML = `${sol} SOL <span class="usd-text">($${usd})</span>`;
+      document.getElementById('sol-change').innerText = `上次更新: ${updated}`;
+  
+      // 计算进度条
+      const morningBalance = sol; // 暂时以缓存余额作为早上7点的数据
+      const target = (morningBalance * 1.1).toFixed(3);
+      const currentSol = sol;
+  
+      let progressPercent = ((currentSol - morningBalance) / (target - morningBalance) * 100).toFixed(1);
+      if (!isFinite(progressPercent)) progressPercent = 0; // 避免除以0
+  
+      document.getElementById('sol-progress').style.width = progressPercent + '%';
+      document.getElementById('sol-progress-text').innerText = `${progressPercent}% (目标: ${target} SOL)`;
+  
+    } catch (e) {
+      console.error("无法读取 balance.json", e);
+    }
+  }
+
   // 绘制七天折线图
   async function drawBalanceChart() {
     try {
@@ -264,7 +292,12 @@ body {
     }
   }
   
-  fetchSolBalance();
+  // 页面加载时先用缓存更新
+  updateFromCache();
+  
+  // 然后尝试拉取实时数据
+  fetchSolBalance(); // 如果接口可用，会覆盖缓存数据
+
   drawBalanceChart();
   setInterval(fetchSolBalance, 30000);
   
