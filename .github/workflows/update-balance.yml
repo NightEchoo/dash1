@@ -1,0 +1,27 @@
+name: Update Now SOL balance
+
+on:
+  schedule:
+    - cron: "0 * * * *"  # 每小时更新一次
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Update balance.json
+        run: bash update_balance.sh
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add balance.json
+          git commit -m "Update SOL balance" || echo "No changes to commit"
+          git push
