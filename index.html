@@ -224,32 +224,46 @@ body {
   
   async function updateFromCache() {
     try {
-      const resp = await fetch('balance.json');
-      const data = await resp.json();
+      // 读取缓存 balance.json（当前余额）
+      const cacheResp = await fetch('balance.json');
+      const cacheData = await cacheResp.json();
+      const currentSol = parseFloat(cacheData.balance);
+      const usd = parseFloat(cacheData.usd);
+      const updated = cacheData.updated;
   
-      const sol = parseFloat(data.balance);
-      const usd = parseFloat(data.usd);
-      const updated = data.updated;
-  
-      // 显示余额
-      document.getElementById('sol-balance').innerHTML = `${sol} SOL <span class="usd-text">($${usd})</span>`;
+      document.getElementById('sol-balance').innerHTML = `${currentSol} SOL <span class="usd-text">($${usd})</span>`;
       document.getElementById('sol-change').innerText = `上次更新: ${updated}`;
   
-      // 计算进度条
-      const morningBalance = sol; // 暂时以缓存余额作为早上7点的数据
-      const target = (morningBalance * 1.1).toFixed(3);
-      const currentSol = sol;
+      // 读取 balances.json（早上7点数据，用最新一条）
+      const balancesResp = await fetch('balances.json');
+      const balances = await balancesResp.json();
+      const morningBalance = parseFloat(balances[balances.length - 1]?.sol || currentSol);
   
+      // 计算环比增长
+      const yesterdaysol = parseFloat(balances[balances.length - 2]?.sol || morningBalance);
+      const changePercent = (((currentSol - yesterdaysol) / yesterdaysol) * 100).toFixed(2);
+      const changeEl = document.getElementById('sol-change');
+      if (changePercent >= 0) {
+        changeEl.className = 'positive';
+        changeEl.innerText = `环比昨日 ▲${changePercent}%`;
+      } else {
+        changeEl.className = 'negative';
+        changeEl.innerText = `环比昨日 ▼${Math.abs(changePercent)}%`;
+      }
+  
+      // 计算目标进度
+      const target = (morningBalance * 1.1).toFixed(3);
       let progressPercent = ((currentSol - morningBalance) / (target - morningBalance) * 100).toFixed(1);
-      if (!isFinite(progressPercent)) progressPercent = 0; // 避免除以0
+      if (!isFinite(progressPercent)) progressPercent = 0;
   
       document.getElementById('sol-progress').style.width = progressPercent + '%';
       document.getElementById('sol-progress-text').innerText = `${progressPercent}% (目标: ${target} SOL)`;
   
     } catch (e) {
-      console.error("无法读取 balance.json", e);
+      console.error("读取缓存或 balances.json 出错", e);
     }
   }
+
 
   // 绘制七天折线图
   async function drawBalanceChart() {
