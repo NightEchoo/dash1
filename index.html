@@ -138,7 +138,7 @@ async function fetchSolBalance() {
 
   // 先读本地缓存 balance.json
   try {
-    const balanceResp = await fetch('balances.json');
+    const balanceResp = await fetch('balance.json');
     fallbackData = await balanceResp.json();
     if (fallbackData && fallbackData.length > 0) {
       const last = fallbackData[fallbackData.length - 1];
