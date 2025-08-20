@@ -1,4 +1,7 @@
 {
-  "sol": 0.949,
-  "lastUpdated": "1970-01-01T00:00:00Z"
+  "balance": 0,
+  "usd": 0,
+  "price": 0,
+  "updated": "2025-08-19 00:00:00",
+  "timezone": "UTC+8"
 }
