@@ -109,6 +109,9 @@ body {
       <div class="title">Sol Balance</div>
       <div class="value" id="sol-balance">Loading...</div>
       <div id="sol-change">...</div>
+      <button id="refresh-btn" style="margin-top:10px; padding:6px 12px; border:none; border-radius:6px; background:#3b82f6; color:white; cursor:pointer;">
+        刷新
+      </button>
     </div>
     
     <!-- 进度条 -->
@@ -129,136 +132,143 @@ body {
 </div>
 
 <script>
-const WALLET_ADDRESS = 'A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88';
-const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067';
-
-// 获取当前余额，先从 balance.json 缓存显示
-async function fetchSolBalance() {
-  let fallbackData = null;
-
-  // 先读取缓存 balance.json
-  try {
-    const balanceResp = await fetch('balance.json');
-    fallbackData = await balanceResp.json();
-    if (fallbackData) {
-      document.getElementById('sol-balance').innerHTML =
-        `${fallbackData.balance} SOL <span class="usd-text">($${fallbackData.usd})</span>`;
-      document.getElementById('sol-change').innerText =
-        `上次更新: ${fallbackData.updated}`;
-    }
-  } catch (e) {
-    console.warn("无法加载 balance.json，本地无缓存");
-  }
-
-  // 拉实时数据
-  try {
-    const resp = await fetch(RPC_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'getBalance',
-        params: [WALLET_ADDRESS, { commitment: 'finalized' }]
-      })
-    });
-    const json = await resp.json();
-    const sol = (json.result.value / 1e9).toFixed(3);
-
-    const priceResp = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
-    const priceData = await priceResp.json();
-    const usd = (sol * priceData.solana.usd).toFixed(2);
-
-    const now = new Date().toLocaleString('zh-CN', { hour12: false });
-    document.getElementById('sol-balance').innerHTML =
-      `${sol} SOL <span class="usd-text">($${usd})</span>`;
-
-    // ✅ 计算环比变化
+  const WALLET_ADDRESS = 'A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88';
+  const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067';
+  
+  // 刷新按钮事件
+  document.getElementById('refresh-btn').addEventListener('click', () => {
+    fetchSolBalance();  // 拉取实时数据
+    drawBalanceChart(); // 更新折线图
+  });
+  
+    
+  // 获取当前余额，先从 balance.json 缓存显示
+  async function fetchSolBalance() {
+    let fallbackData = null;
+  
+    // 先读取缓存 balance.json
     try {
-      const balancesResp = await fetch('balances.json');
-      const balances = await balancesResp.json();
-      const todaysol = parseFloat(balances[balances.length - 1]?.sol || sol);
-      const yesterdaysol = parseFloat(balances[balances.length - 2]?.sol || sol);
-      const changePercent = (((todaysol - yesterdaysol) / yesterdaysol) * 100).toFixed(2);
-      const changeEl = document.getElementById('sol-change');
-      if (changePercent >= 0) {
-        changeEl.className = 'positive';
-        changeEl.innerText = `环比昨日 ▲${changePercent}%`;
-      } else {
-        changeEl.className = 'negative';
-        changeEl.innerText = `环比昨日 ▼${Math.abs(changePercent)}%`;
+      const balanceResp = await fetch('balance.json');
+      fallbackData = await balanceResp.json();
+      if (fallbackData) {
+        document.getElementById('sol-balance').innerHTML =
+          `${fallbackData.balance} SOL <span class="usd-text">($${fallbackData.usd})</span>`;
+        document.getElementById('sol-change').innerText =
+          `上次更新: ${fallbackData.updated}`;
       }
-    } catch(e) {
-      console.warn("环比计算失败", e);
+    } catch (e) {
+      console.warn("无法加载 balance.json，本地无缓存");
     }
-
-    // 进度条逻辑保持不变
+  
+    // 拉实时数据
     try {
-      const balancesResp = await fetch('balances.json');
-      const balances = await balancesResp.json();
-      const morningBalance = parseFloat(balances[balances.length - 1]?.sol || sol);
-      const target = (morningBalance * 1.1).toFixed(3);
-      const currentSol = parseFloat(sol);
-      let progressPercent = ((currentSol - morningBalance) / (target - morningBalance) * 100).toFixed(1);
-      progressPercent = Math.max(progressPercent, 0);
-      document.getElementById('sol-progress').style.width = progressPercent + '%';
-      document.getElementById('sol-progress-text').innerText = `${progressPercent}% (目标: ${target} SOL)`;
-    } catch(e) {
-      console.warn("进度条计算失败", e);
+      const resp = await fetch(RPC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'getBalance',
+          params: [WALLET_ADDRESS, { commitment: 'finalized' }]
+        })
+      });
+      const json = await resp.json();
+      const sol = (json.result.value / 1e9).toFixed(3);
+  
+      const priceResp = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+      const priceData = await priceResp.json();
+      const usd = (sol * priceData.solana.usd).toFixed(2);
+  
+      const now = new Date().toLocaleString('zh-CN', { hour12: false });
+      document.getElementById('sol-balance').innerHTML =
+        `${sol} SOL <span class="usd-text">($${usd})</span>`;
+  
+      // ✅ 计算环比变化
+      try {
+        const balancesResp = await fetch('balances.json');
+        const balances = await balancesResp.json();
+        const todaysol = parseFloat(balances[balances.length - 1]?.sol || sol);
+        const yesterdaysol = parseFloat(balances[balances.length - 2]?.sol || sol);
+        const changePercent = (((todaysol - yesterdaysol) / yesterdaysol) * 100).toFixed(2);
+        const changeEl = document.getElementById('sol-change');
+        if (changePercent >= 0) {
+          changeEl.className = 'positive';
+          changeEl.innerText = `环比昨日 ▲${changePercent}%`;
+        } else {
+          changeEl.className = 'negative';
+          changeEl.innerText = `环比昨日 ▼${Math.abs(changePercent)}%`;
+        }
+      } catch(e) {
+        console.warn("环比计算失败", e);
+      }
+  
+      // 进度条逻辑保持不变
+      try {
+        const balancesResp = await fetch('balances.json');
+        const balances = await balancesResp.json();
+        const morningBalance = parseFloat(balances[balances.length - 1]?.sol || sol);
+        const target = (morningBalance * 1.1).toFixed(3);
+        const currentSol = parseFloat(sol);
+        let progressPercent = ((currentSol - morningBalance) / (target - morningBalance) * 100).toFixed(1);
+        progressPercent = Math.max(progressPercent, 0);
+        document.getElementById('sol-progress').style.width = progressPercent + '%';
+        document.getElementById('sol-progress-text').innerText = `${progressPercent}% (目标: ${target} SOL)`;
+      } catch(e) {
+        console.warn("进度条计算失败", e);
+      }
+  
+    } catch (err) {
+      console.error("实时查询失败，继续显示缓存", err);
     }
-
-  } catch (err) {
-    console.error("实时查询失败，继续显示缓存", err);
   }
-}
-
-
-// 绘制七天折线图
-async function drawBalanceChart() {
-  try {
-    const resp = await fetch('balances.json');
-    const data = await resp.json();
-    const labels = data.map(item => item.date);
-    const values = data.map(item => parseFloat(item.sol).toFixed(3));
-    const ctx = document.getElementById('balanceChart').getContext('2d');
-    new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: 'SOL余额',
-          data: values,
-          borderColor: '#3b82f6',
-          fill: false,
-          tension: 0.2
-        }]
-      },
-      options: {
-        scales: {
-          y: {
-            beginAtZero: false,
-            ticks: { callback: function(value){ return parseFloat(value).toFixed(3); } }
-          }
+  
+  
+  // 绘制七天折线图
+  async function drawBalanceChart() {
+    try {
+      const resp = await fetch('balances.json');
+      const data = await resp.json();
+      const labels = data.map(item => item.date);
+      const values = data.map(item => parseFloat(item.sol).toFixed(3));
+      const ctx = document.getElementById('balanceChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'SOL余额',
+            data: values,
+            borderColor: '#3b82f6',
+            fill: false,
+            tension: 0.2
+          }]
         },
-        plugins: {
-          tooltip: {
-            callbacks: {
-              label: function(context){ return context.dataset.label + ': ' + parseFloat(context.raw).toFixed(3); }
+        options: {
+          scales: {
+            y: {
+              beginAtZero: false,
+              ticks: { callback: function(value){ return parseFloat(value).toFixed(3); } }
+            }
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(context){ return context.dataset.label + ': ' + parseFloat(context.raw).toFixed(3); }
+              }
             }
           }
         }
-      }
-    });
-  } catch(err) {
-    console.error("折线图加载失败", err);
+      });
+    } catch(err) {
+      console.error("折线图加载失败", err);
+    }
   }
-}
-
-fetchSolBalance();
-drawBalanceChart();
-setInterval(fetchSolBalance, 30000);
-
-function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
+  
+  fetchSolBalance();
+  drawBalanceChart();
+  setInterval(fetchSolBalance, 30000);
+  
+  function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
 </script>
 
 </body>
