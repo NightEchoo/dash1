@@ -134,23 +134,6 @@ const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14
 
 // 获取当前余额
 async function fetchSolBalance() {
-  let fallbackData = null;
-
-  // 先读本地缓存 balance.json
-  try {
-    const balanceResp = await fetch('balance.json');
-    fallbackData = await balanceResp.json();
-    if (fallbackData && fallbackData.length > 0) {
-      const last = fallbackData[fallbackData.length - 1];
-      document.getElementById('sol-balance').innerHTML =
-        `${last.sol} SOL <span class="usd-text">($${last.usd})</span>`;
-      document.getElementById('sol-change').innerText =
-        `上次更新: ${last.time}`;
-    }
-  } catch (e) {
-    console.warn("无法加载 balance.json，本地无缓存");
-  }
-  
   const resp = await fetch(RPC_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -169,16 +152,7 @@ async function fetchSolBalance() {
   const priceData = await priceResp.json();
   const usd = (sol * priceData.solana.usd).toFixed(2);
 
-  // 覆盖展示最新数据
-    const now = new Date().toLocaleString();
-    document.getElementById('sol-balance').innerHTML =
-      `${sol} SOL <span class="usd-text">($${usd})</span>`;
-    document.getElementById('sol-change').innerText = `更新成功: ${now}`;
-
-  } catch (err) {
-    console.error("实时查询失败，继续显示缓存", err);
-  
-  // document.getElementById('sol-balance').innerHTML = `${sol} SOL <span class="usd-text">($${usd})</span>`;
+  document.getElementById('sol-balance').innerHTML = `${sol} SOL <span class="usd-text">($${usd})</span>`;
 
   const balanceResp = await fetch('balances.json');
   const balances = await balanceResp.json();
