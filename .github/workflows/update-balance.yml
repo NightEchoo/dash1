@@ -3,7 +3,7 @@ name: Update Now SOL balance
 on:
   schedule:
     - cron: "0 * * * *"  # 每小时更新一次
-  workflow_dispatch:
+  workflow_dispatch:       # 支持手动触发
 
 jobs:
   update:
@@ -15,6 +15,9 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
+      - name: Set up jq
+        run: sudo apt-get update && sudo apt-get install -y jq bc
+
       - name: Update balance.json
         run: bash update_balance.sh
 
@@ -25,3 +28,4 @@ jobs:
           git add balance.json
           git commit -m "Update SOL balance" || echo "No changes to commit"
           git push
+
