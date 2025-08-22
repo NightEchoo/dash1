@@ -18,7 +18,7 @@ jobs:
             -d '{"jsonrpc":"2.0","id":1,"method":"getBalance","params":["A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88"]}' \
             | jq '.result.value/1000000000')
 
-          DATE=$(date +'%Y-%m-%d')
+          DATE=$(TZ=Asia/Shanghai date +'%Y-%m-%d')
           echo "{\"date\": \"$DATE\", \"sol\": $BALANCE}" > today.json
 
       - name: Update balances.json
