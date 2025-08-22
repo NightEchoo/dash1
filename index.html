@@ -72,16 +72,6 @@ refreshBtn.addEventListener('click', () => {
   drawBalanceChart();
 });
 
-// 显示 LocalStorage 的缓存数据
-function loadFromLocalStorage() {
-  try {
-    const cached = JSON.parse(localStorage.getItem('balanceData'));
-    if (cached) {
-      updateBalanceUI(cached.balance, cached.usd, cached.updated, cached.morningBalance);
-    }
-  } catch(e) { console.warn("LocalStorage 无缓存", e); }
-}
-
 // 更新余额 UI + 进度条
 function updateBalanceUI(sol, usd, updated, morningBalance) {
   document.getElementById('sol-balance').innerHTML = `${sol} SOL <span class="usd-text">($${usd})</span>`;
@@ -99,9 +89,7 @@ function updateBalanceUI(sol, usd, updated, morningBalance) {
 async function fetchBalanceJson() {
   try {
     const resp = await fetch('balance.json?' + Date.now());
-    const data = await resp.json();
-    localStorage.setItem('balanceData', JSON.stringify(data));
-    return data;
+    return await resp.json();
   } catch(e) {
     console.warn("无法读取 balance.json", e);
     return null;
@@ -134,30 +122,21 @@ async function fetchSolBalance() {
     const balances = await balancesResp.json();
     const morningBalance = parseFloat(balances[balances.length-1]?.sol || sol);
 
-    // 更新 UI & 缓存
+    // 更新 UI
     updateBalanceUI(sol, usd, now, morningBalance);
-    localStorage.setItem('balanceData', JSON.stringify({ balance: sol, usd, updated: now, morningBalance }));
 
   } catch(e) {
-    console.warn("实时查询失败，使用缓存", e);
+    console.warn("实时查询失败，使用 balance.json 数据", e);
   }
 }
 
 // 绘制余额折线图
 async function drawBalanceChart() {
   let data = null;
-  const cachedHistory = localStorage.getItem('balanceHistory');
-  if (cachedHistory) {
-    try { data = JSON.parse(cachedHistory); } 
-    catch(e){ console.warn("LocalStorage折线数据解析失败", e); }
-  }
-  if (!data) {
-    try {
-      const resp = await fetch('balances.json?' + Date.now());
-      data = await resp.json();
-      localStorage.setItem('balanceHistory', JSON.stringify(data));
-    } catch(e){ console.warn("折线图数据加载失败", e); return; }
-  }
+  try {
+    const resp = await fetch('balances.json?' + Date.now());
+    data = await resp.json();
+  } catch(e){ console.warn("折线图数据加载失败", e); return; }
 
   const labels = data.map(d => d.date);
   const values = data.map(d => parseFloat(d.sol).toFixed(3));
@@ -185,7 +164,6 @@ async function drawBalanceChart() {
 }
 
 // 页面初始化
-loadFromLocalStorage();
 fetchSolBalance();
 drawBalanceChart();
 setInterval(fetchSolBalance, 30000);
