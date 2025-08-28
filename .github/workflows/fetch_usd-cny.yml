@@ -1,0 +1,32 @@
+name: Fetch USD-CNY Rate
+
+on:
+  schedule:
+    - cron: '0 23 * * *'  # 每天 UTC 23:00
+  workflow_dispatch:
+
+jobs:
+  fetch-usd-cny:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Fetch USD-CNY rate
+        run: |
+          echo "Fetching USD → CNY rate..."
+          RATE=$(curl -s 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usdt.json' | jq -r '.usdt.cny')
+          if [ -z "$RATE" ]; then
+            echo "Failed to fetch rate"
+            exit 1
+          fi
+          echo "{\"rate\": $RATE, \"date\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"}" > usd-cny.json
+
+      - name: Commit and push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add usd-cny.json
+          git commit -m "Update USD-CNY rate [skip ci]" || echo "No changes"
+          git push
