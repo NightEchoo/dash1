@@ -53,23 +53,30 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:0; 
       <div id="sol-progress-text" style="font-size:12px; color:#888; margin-top:4px;">...</div>
     </div>
 
-    <!-- 折线图 -->
+    <!-- 7天折线图 -->
     <div class="card" style="grid-column: span 2;">
       <div class="title">7天余额变化</div>
-      <canvas id="balanceChart" height="200"></canvas>
-      <div id="ring-change" style="margin-top:10px;font-size:14px;"></div>
+      <canvas id="balanceChart7" height="200"></canvas>
+      <div id="ring-change-7" style="margin-top:10px;font-size:14px;"></div>
+    </div>
+
+    <!-- 30天折线图 -->
+    <div class="card" style="grid-column: span 2;">
+      <div class="title">30天余额变化</div>
+      <canvas id="balanceChart30" height="200"></canvas>
+      <div id="ring-change-30" style="margin-top:10px;font-size:14px;"></div>
     </div>
   </div>
 </div>
 
 <script>
 const WALLET_ADDRESS = 'A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88';
-const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067';
+const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067'; 
 const refreshBtn = document.getElementById('refresh-btn');
 
 refreshBtn.addEventListener('click', () => {
   fetchSolBalance();
-  drawBalanceChart();
+  drawBalanceCharts();
 });
 
 // 更新余额 UI + 进度条
@@ -130,34 +137,50 @@ async function fetchSolBalance() {
   }
 }
 
-// 绘制余额折线图
-async function drawBalanceChart() {
+// 绘制 7天 和 30天 折线图
+async function drawBalanceCharts() {
   let data = null;
   try {
     const resp = await fetch('balances.json?' + Date.now());
     data = await resp.json();
   } catch(e){ console.warn("折线图数据加载失败", e); return; }
 
-  const labels = data.map(d => d.date);
-  const values = data.map(d => parseFloat(d.sol).toFixed(3));
-  const ctx = document.getElementById('balanceChart').getContext('2d');
-  if (window.balanceChartInstance) window.balanceChartInstance.destroy();
-
-  window.balanceChartInstance = new Chart(ctx, {
+  // --- 7天图 ---
+  const last7 = data.slice(-7);
+  const labels7 = last7.map(d => d.date);
+  const values7 = last7.map(d => parseFloat(d.sol).toFixed(3));
+  const ctx7 = document.getElementById('balanceChart7').getContext('2d');
+  if (window.balanceChart7Instance) window.balanceChart7Instance.destroy();
+  window.balanceChart7Instance = new Chart(ctx7, {
     type: 'line',
-    data: { labels, datasets: [{ label: 'SOL余额', data: values, borderColor: '#3b82f6', fill: false, tension: 0.2 }] },
-    options: {
-      scales: { y: { beginAtZero: false, ticks: { callback: v => parseFloat(v).toFixed(3) } } },
-      plugins: { tooltip: { callbacks: { label: ctx => 'SOL余额: ' + parseFloat(ctx.raw).toFixed(3) } } }
-    }
+    data: { labels: labels7, datasets: [{ label: 'SOL余额', data: values7, borderColor: '#3b82f6', fill: false, tension: 0.2 }] },
+    options: { scales: { y: { beginAtZero: false } } }
   });
-
-  // 环比变化
-  if (values.length >= 2) {
-    const latest = parseFloat(values[values.length-1]);
-    const prev = parseFloat(values[values.length-2]);
+  if (values7.length >= 2) {
+    const latest = parseFloat(values7[values7.length-1]);
+    const prev = parseFloat(values7[values7.length-2]);
     const diffPercent = ((latest - prev) / prev * 100).toFixed(2);
-    document.getElementById("ring-change").innerText = diffPercent >= 0
+    document.getElementById("ring-change-7").innerText = diffPercent >= 0
+      ? `📈 较昨日增加 ${diffPercent}%`
+      : `📉 较昨日减少 ${Math.abs(diffPercent)}%`;
+  }
+
+  // --- 30天图 ---
+  const last30 = data.slice(-30);
+  const labels30 = last30.map(d => d.date);
+  const values30 = last30.map(d => parseFloat(d.sol).toFixed(3));
+  const ctx30 = document.getElementById('balanceChart30').getContext('2d');
+  if (window.balanceChart30Instance) window.balanceChart30Instance.destroy();
+  window.balanceChart30Instance = new Chart(ctx30, {
+    type: 'line',
+    data: { labels: labels30, datasets: [{ label: 'SOL余额', data: values30, borderColor: '#10b981', fill: false, tension: 0.2 }] },
+    options: { scales: { y: { beginAtZero: false } } }
+  });
+  if (values30.length >= 2) {
+    const latest = parseFloat(values30[values30.length-1]);
+    const prev = parseFloat(values30[values30.length-2]);
+    const diffPercent = ((latest - prev) / prev * 100).toFixed(2);
+    document.getElementById("ring-change-30").innerText = diffPercent >= 0
       ? `📈 较昨日增加 ${diffPercent}%`
       : `📉 较昨日减少 ${Math.abs(diffPercent)}%`;
   }
@@ -165,7 +188,7 @@ async function drawBalanceChart() {
 
 // 页面初始化
 fetchSolBalance();
-drawBalanceChart();
+drawBalanceCharts();
 setInterval(fetchSolBalance, 30000);
 
 function toggleDarkMode(){ document.body.classList.toggle('dark-mode'); }
