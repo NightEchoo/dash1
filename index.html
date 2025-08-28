@@ -16,7 +16,7 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:0; 
 .card { background:white; border-radius:16px; padding:20px; box-shadow:0 4px 10px rgba(0,0,0,0.05); transition:background 0.3s, color 0.3s; }
 .card .title { font-size:14px; color:#888; margin-bottom:6px; }
 .value { font-size:32px; font-weight:bold; cursor:pointer; }
-.usd-text { font-size:14px; color:#888; margin-left:6px; cursor:pointer; }
+.usd-text { font-size:14px; color:#888; margin-left:6px; }
 .positive { color:#16a34a; font-size:14px; }
 .negative { color:red; font-size:14px; }
 .dark-mode { background:#1f2937; color:#f9fafb; }
@@ -71,47 +71,41 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:0; 
 
 <script>
 const WALLET_ADDRESS = 'A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88';
-const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067';
+const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067'; 
 const refreshBtn = document.getElementById('refresh-btn');
-let displayCurrency = 'USD'; // 默认显示 USD
-let solPriceUSD = 0; // 实时USD价格
-let solBalance = 0; // 当前SOL余额
+const solBalanceEl = document.getElementById('sol-balance');
+
+let usdPrice = 0;       // USD 当前价
+let cnyPrice = 0;       // CNY 当前价
+let solAmount = 0;      // SOL 数量
+let showingUSD = true;  // 当前显示 USD
 
 refreshBtn.addEventListener('click', () => {
   fetchSolBalance();
   drawBalanceCharts();
 });
 
-// 点击切换 USD/CNY
-document.getElementById('sol-balance').addEventListener('click', async () => {
-  if (!solPriceUSD) return; // 如果价格还没获取到，不切换
-  if(displayCurrency === 'USD') {
-    try {
-      const rateResp = await fetch('https://api.exchangerate.host/convert?from=USD&to=CNY');
-      const rateData = await rateResp.json();
-      const cnyPrice = (solPriceUSD * rateData.result).toFixed(2);
-      document.getElementById('sol-balance').innerHTML = `${solBalance} SOL <span class="usd-text">(${cnyPrice} CNY)</span>`;
-      displayCurrency = 'CNY';
-    } catch(e) { console.warn("获取人民币汇率失败", e); }
-  } else {
-    document.getElementById('sol-balance').innerHTML = `${solBalance} SOL <span class="usd-text">($${(solBalance*solPriceUSD).toFixed(2)})</span>`;
-    displayCurrency = 'USD';
-  }
+// 点击金额切换 USD/CNY
+solBalanceEl.addEventListener('click', () => {
+  if (solAmount === 0) return;
+  showingUSD = !showingUSD;
+  updateBalanceDisplay();
 });
+
+// 更新显示
+function updateBalanceDisplay() {
+  if (showingUSD) {
+    solBalanceEl.innerHTML = `${solAmount} SOL <span class="usd-text">($${usdPrice})</span>`;
+  } else {
+    solBalanceEl.innerHTML = `${solAmount} SOL <span class="usd-text">(¥${cnyPrice})</span>`;
+  }
+}
 
 // 更新余额 UI + 进度条
 function updateBalanceUI(sol, usd, updated, morningBalance) {
-  solBalance = sol;
-  solPriceUSD = usd / sol; // 每SOL对应的USD
-  if(displayCurrency === 'USD'){
-    document.getElementById('sol-balance').innerHTML = `${sol} SOL <span class="usd-text">($${usd})</span>`;
-  } else {
-    fetch('https://api.exchangerate.host/convert?from=USD&to=CNY').then(res=>res.json()).then(rateData=>{
-      const cnyPrice = (usd * rateData.result).toFixed(2);
-      document.getElementById('sol-balance').innerHTML = `${sol} SOL <span class="usd-text">(${cnyPrice} CNY)</span>`;
-    });
-  }
-
+  solAmount = sol;
+  usdPrice = usd;
+  updateBalanceDisplay();
   document.getElementById('sol-change').innerText = `上次更新: ${updated}`;
 
   const target = (morningBalance * 1.1).toFixed(3);
@@ -130,6 +124,18 @@ async function fetchBalanceJson() {
   } catch(e) {
     console.warn("无法读取 balance.json", e);
     return null;
+  }
+}
+
+// 获取 USD->CNY 汇率
+async function fetchUSDCNYRate() {
+  try {
+    const resp = await fetch('https://api.exchangerate.host/convert?from=USD&to=CNY');
+    const data = await resp.json();
+    return data.result;
+  } catch(e) {
+    console.warn("获取汇率失败", e);
+    return 7; // 兜底
   }
 }
 
@@ -152,6 +158,12 @@ async function fetchSolBalance() {
     const priceResp = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
     const priceData = await priceResp.json();
     const usd = (sol * priceData.solana.usd).toFixed(2);
+
+    // 获取 USD->CNY 汇率
+    const rate = await fetchUSDCNYRate();
+    const cny = (usd * rate).toFixed(2);
+    cnyPrice = cny;
+
     const now = new Date().toLocaleString('zh-CN', { hour12:false });
 
     // 获取早晨余额
