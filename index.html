@@ -74,26 +74,27 @@ const WALLET_ADDRESS = 'A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88';
 const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067'; 
 const refreshBtn = document.getElementById('refresh-btn');
 
-let showInCNY = false; // 默认显示 USD
-let usdCnyRate = 0;
+let showInCNY = false; // 是否显示 CNY
+let usdCnyRate = 0;    // USD → CNY 汇率
 
 refreshBtn.addEventListener('click', () => {
   fetchSolBalance();
   drawBalanceCharts();
 });
 
-// 获取缓存的 USD→CNY 汇率
+// --- 获取 USD→CNY 汇率 ---
 async function fetchUSDCNY() {
   try {
     const resp = await fetch('usd-cny.json?' + Date.now());
     const data = await resp.json();
     usdCnyRate = parseFloat(data.rate);
   } catch(e) {
-    console.warn('读取 usd-cny.json 失败', e);
+    console.warn('读取 usd-cny.json 失败，默认汇率 7', e);
+    usdCnyRate = 7;
   }
 }
 
-// 更新余额 UI + 进度条
+// --- 更新余额显示和进度条 ---
 function updateBalanceUI(sol, usd, updated, morningBalance) {
   const display = showInCNY ? (usd * usdCnyRate).toFixed(2) : usd;
   const symbol = showInCNY ? '¥' : '$';
@@ -109,7 +110,7 @@ function updateBalanceUI(sol, usd, updated, morningBalance) {
   document.getElementById('sol-progress-text').innerText = `${progressPercent}% (目标: ${target} SOL)`;
 }
 
-// 从 balance.json 获取缓存数据
+// --- 获取缓存 balance.json ---
 async function fetchBalanceJson() {
   try {
     const resp = await fetch('balance.json?' + Date.now());
@@ -120,7 +121,7 @@ async function fetchBalanceJson() {
   }
 }
 
-// 实时拉取 SOL & USD
+// --- 实时拉取 SOL & USD ---
 async function fetchSolBalance() {
   let fallback = await fetchBalanceJson();
   if (fallback) updateBalanceUI(fallback.balance, fallback.usd, fallback.updated, fallback.morningBalance || fallback.balance);
@@ -149,7 +150,7 @@ async function fetchSolBalance() {
   }
 }
 
-// 绘制 7天 和 30天 折线图
+// --- 绘制折线图 ---
 async function drawBalanceCharts() {
   let data = null;
   try {
@@ -157,60 +158,49 @@ async function drawBalanceCharts() {
     data = await resp.json();
   } catch(e){ console.warn("折线图数据加载失败", e); return; }
 
-  // --- 7天图 ---
-  const last7 = data.slice(-7);
-  const labels7 = last7.map(d => d.date);
-  const values7 = last7.map(d => parseFloat(d.sol).toFixed(3));
-  const ctx7 = document.getElementById('balanceChart7').getContext('2d');
-  if (window.balanceChart7Instance) window.balanceChart7Instance.destroy();
-  window.balanceChart7Instance = new Chart(ctx7, {
-    type: 'line',
-    data: { labels: labels7, datasets: [{ label: 'SOL余额', data: values7, borderColor: '#3b82f6', fill: false, tension: 0.2 }] },
-    options: { scales: { y: { beginAtZero: false } } }
-  });
-  if (values7.length >= 2) {
-    const latest = parseFloat(values7[values7.length-1]);
-    const prev = parseFloat(values7[values7.length-2]);
-    const diffPercent = ((latest - prev) / prev * 100).toFixed(2);
-    document.getElementById("ring-change-7").innerText = diffPercent >= 0
-      ? `📈 较昨日增加 ${diffPercent}%`
-      : `📉 较昨日减少 ${Math.abs(diffPercent)}%`;
-  }
+  const drawChart = (canvasId, lastN, color, changeId) => {
+    const lastData = data.slice(-lastN);
+    const labels = lastData.map(d => d.date);
+    const values = lastData.map(d => parseFloat(d.sol).toFixed(3));
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    if (window[canvasId + 'Instance']) window[canvasId + 'Instance'].destroy();
+    window[canvasId + 'Instance'] = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets: [{ label: 'SOL余额', data: values, borderColor: color, fill: false, tension: 0.2 }] },
+      options: { scales: { y: { beginAtZero: false } } }
+    });
 
-  // --- 30天图 ---
-  const last30 = data.slice(-30);
-  const labels30 = last30.map(d => d.date);
-  const values30 = last30.map(d => parseFloat(d.sol).toFixed(3));
-  const ctx30 = document.getElementById('balanceChart30').getContext('2d');
-  if (window.balanceChart30Instance) window.balanceChart30Instance.destroy();
-  window.balanceChart30Instance = new Chart(ctx30, {
-    type: 'line',
-    data: { labels: labels30, datasets: [{ label: 'SOL余额', data: values30, borderColor: '#10b981', fill: false, tension: 0.2 }] },
-    options: { scales: { y: { beginAtZero: false } } }
-  });
-  if (values30.length >= 2) {
-    const latest = parseFloat(values30[values30.length-1]);
-    const prev = parseFloat(values30[values30.length-2]);
-    const diffPercent = ((latest - prev) / prev * 100).toFixed(2);
-    document.getElementById("ring-change-30").innerText = diffPercent >= 0
-      ? `📈 较昨日增加 ${diffPercent}%`
-      : `📉 较昨日减少 ${Math.abs(diffPercent)}%`;
-  }
+    if (values.length >= 2) {
+      const latest = parseFloat(values[values.length-1]);
+      const prev = parseFloat(values[values.length-2]);
+      const diffPercent = ((latest - prev) / prev * 100).toFixed(2);
+      document.getElementById(changeId).innerText = diffPercent >= 0
+        ? `📈 较昨日增加 ${diffPercent}%`
+        : `📉 较昨日减少 ${Math.abs(diffPercent)}%`;
+    }
+  };
+
+  drawChart('balanceChart7', 7, '#3b82f6', 'ring-change-7');
+  drawChart('balanceChart30', 30, '#10b981', 'ring-change-30');
 }
 
-// 点击切换 USD/CNY
+// --- 点击余额切换 USD/CNY ---
 document.getElementById('sol-balance').addEventListener('click', () => {
   showInCNY = !showInCNY;
   fetchSolBalance();
 });
 
-// 页面初始化
-fetchUSDCNY().then(() => fetchSolBalance());
-drawBalanceCharts();
+// --- 初始化 ---
+fetchUSDCNY().then(() => {
+  fetchSolBalance();
+  drawBalanceCharts();
+});
 setInterval(fetchSolBalance, 30000);
 
+// --- 夜间模式 ---
 function toggleDarkMode(){ document.body.classList.toggle('dark-mode'); }
 </script>
+
 
 </body>
 </html>
