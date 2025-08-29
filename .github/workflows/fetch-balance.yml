@@ -2,38 +2,48 @@ name: Update SOL Balance
 
 on:
   schedule:
-    # 每天 UTC 23:00 = 北京时间 7:00
+    # 每天 UTC 23:00 = 北京时间 07:00
     - cron: '0 23 * * *'
   workflow_dispatch:
 
 jobs:
   update_balance:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
       - name: Fetch current SOL balance
         run: |
-          BALANCE=$(curl -s -X POST https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067 \
+          BALANCE=$(curl -s -X POST "https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067" \
             -H "Content-Type: application/json" \
             -d '{"jsonrpc":"2.0","id":1,"method":"getBalance","params":["A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88"]}' \
             | jq '.result.value/1000000000')
 
           DATE=$(date +'%Y-%m-%d')
           echo "{\"date\": \"$DATE\", \"sol\": $BALANCE}" > today.json
+          cat today.json
 
       - name: Update balances.json (keep 30 days)
         run: |
-          # 如果 balances.json 不存在则创建空数组
           if [ ! -f balances.json ]; then
             echo "[]" > balances.json
           fi
 
-          # 合并到原来的 balances.json，只保留最近 30 天
-          jq -s '.[0] + [.[1]] | group_by(.date) | map(.[0]) | sort_by(.date) | reverse | .[0:30] | reverse' balances.json today.json > balances_tmp.json
-          mv balances_tmp.json balances.json
+          # 合并 today.json，去重按日期，排序，只保留最近30天
+          jq -s '.[0] + [.[1]] 
+                 | group_by(.date) 
+                 | map(.[0]) 
+                 | sort_by(.date) 
+                 | reverse 
+                 | .[0:30] 
+                 | reverse' balances.json today.json > balances_tmp.json
 
-      - name: Commit and push
+          mv balances_tmp.json balances.json
+          cat balances.json
+
+      - name: Commit and push changes
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
