@@ -56,8 +56,8 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:0; 
 
     <!-- 折线图（支持 7天/30天切换） -->
     <div class="card" style="grid-column: span 2;">
-      <div class="title">余额变化</div>
-      <button class="chart-toggle-btn" id="toggleChartBtn">显示30天</button>
+      <div class="title" id="chartTitle">7天余额变化</div>
+      <button class="chart-toggle-btn" id="toggleChartBtn">切换</button>
       <canvas id="balanceChart" height="200"></canvas>
       <div id="ring-change" style="margin-top:10px;font-size:14px;"></div>
     </div>
@@ -69,10 +69,11 @@ const WALLET_ADDRESS = 'A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88';
 const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067'; 
 const refreshBtn = document.getElementById('refresh-btn');
 const toggleChartBtn = document.getElementById('toggleChartBtn');
+const chartTitle = document.getElementById('chartTitle');
 
-let showInCNY = false; // 是否显示 CNY
-let usdCnyRate = 0;    // USD → CNY 汇率
-let showDays = 7;      // 默认显示 7 天
+let showInCNY = false; 
+let usdCnyRate = 0;    
+let showDays = 7;      
 let chartInstance = null;
 
 refreshBtn.addEventListener('click', () => {
@@ -80,7 +81,6 @@ refreshBtn.addEventListener('click', () => {
   drawBalanceChart();
 });
 
-// --- 获取 USD→CNY 汇率 ---
 async function fetchUSDCNY() {
   try {
     const resp = await fetch('usd-cny.json?' + Date.now());
@@ -92,7 +92,6 @@ async function fetchUSDCNY() {
   }
 }
 
-// --- 更新余额显示和进度条 ---
 function updateBalanceUI(sol, usd, updated, morningBalance) {
   const display = showInCNY ? (usd * usdCnyRate).toFixed(2) : usd;
   const symbol = showInCNY ? '¥' : '$';
@@ -108,7 +107,6 @@ function updateBalanceUI(sol, usd, updated, morningBalance) {
   document.getElementById('sol-progress-text').innerText = `${progressPercent}% (目标: ${target} SOL)`;
 }
 
-// --- 获取缓存 balance.json ---
 async function fetchBalanceJson() {
   try {
     const resp = await fetch('balance.json?' + Date.now());
@@ -119,7 +117,6 @@ async function fetchBalanceJson() {
   }
 }
 
-// --- 实时拉取 SOL & USD ---
 async function fetchSolBalance() {
   let fallback = await fetchBalanceJson();
   if (fallback) updateBalanceUI(fallback.balance, fallback.usd, fallback.updated, fallback.morningBalance || fallback.balance);
@@ -148,7 +145,6 @@ async function fetchSolBalance() {
   }
 }
 
-// --- 绘制折线图 ---
 async function drawBalanceChart() {
   let data = null;
   try {
@@ -165,8 +161,16 @@ async function drawBalanceChart() {
   chartInstance = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets: [{ label: 'SOL余额', data: values, borderColor: '#3b82f6', fill: false, tension: 0.2 }] },
-    options: { scales: { y: { beginAtZero: false } } }
+    options: { 
+      scales: { 
+        x: { grid: { display: false } },
+        y: { grid: { display: false }, beginAtZero: false }
+      },
+      plugins: { legend: { display: false } }
+    }
   });
+
+  chartTitle.innerText = `${showDays}天余额变化`;
 
   if (values.length >= 2) {
     const latest = parseFloat(values[values.length-1]);
@@ -178,27 +182,22 @@ async function drawBalanceChart() {
   }
 }
 
-// --- 点击余额切换 USD/CNY ---
 document.getElementById('sol-balance').addEventListener('click', () => {
   showInCNY = !showInCNY;
   fetchSolBalance();
 });
 
-// --- 切换 7天/30天 ---
 toggleChartBtn.addEventListener('click', () => {
   showDays = (showDays === 7 ? 30 : 7);
-  toggleChartBtn.innerText = showDays === 7 ? "显示30天" : "显示7天";
   drawBalanceChart();
 });
 
-// --- 初始化 ---
 fetchUSDCNY().then(() => {
   fetchSolBalance();
   drawBalanceChart();
 });
 setInterval(fetchSolBalance, 30000);
 
-// --- 夜间模式 ---
 function toggleDarkMode(){ document.body.classList.toggle('dark-mode'); }
 </script>
 
