@@ -13,7 +13,7 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:0; 
 .navbar .toggle-btn { padding:6px 12px; border:none; border-radius:6px; cursor:pointer; background:#2563eb; color:white; }
 .content { padding:80px 20px 20px 20px; }
 .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:20px; }
-.card { background:white; border-radius:16px; padding:20px; box-shadow:0 4px 10px rgba(0,0,0,0.05); transition:background 0.3s, color 0.3s; }
+.card { background:white; border-radius:16px; padding:20px; box-shadow:0 4px 10px rgba(0,0,0,0.05); transition:background 0.3s, color 0.3s; position:relative; }
 .card .title { font-size:14px; color:#888; margin-bottom:6px; }
 .value { font-size:32px; font-weight:bold; cursor:pointer; }
 .usd-text { font-size:14px; color:#888; margin-left:6px; }
@@ -23,6 +23,7 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:0; 
 .dark-mode .card { background:#374151; color:#f9fafb; }
 .dark-mode .card .title { color:#d1d5db; }
 .dark-mode .usd-text { color:#9ca3af; }
+.chart-toggle-btn { position:absolute; top:16px; right:16px; padding:4px 10px; border:none; border-radius:6px; cursor:pointer; background:#3b82f6; color:white; font-size:12px; }
 @media (max-width: 600px) { .grid > .card { grid-column: span 1 !important; } }
 </style>
 </head>
@@ -53,18 +54,12 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:0; 
       <div id="sol-progress-text" style="font-size:12px; color:#888; margin-top:4px;">...</div>
     </div>
 
-    <!-- 7天折线图 -->
+    <!-- 折线图（支持 7天/30天切换） -->
     <div class="card" style="grid-column: span 2;">
-      <div class="title">7天余额变化</div>
-      <canvas id="balanceChart7" height="200"></canvas>
-      <div id="ring-change-7" style="margin-top:10px;font-size:14px;"></div>
-    </div>
-
-    <!-- 30天折线图 -->
-    <div class="card" style="grid-column: span 2;">
-      <div class="title">30天余额变化</div>
-      <canvas id="balanceChart30" height="200"></canvas>
-      <div id="ring-change-30" style="margin-top:10px;font-size:14px;"></div>
+      <div class="title">余额变化</div>
+      <button class="chart-toggle-btn" id="toggleChartBtn">显示30天</button>
+      <canvas id="balanceChart" height="200"></canvas>
+      <div id="ring-change" style="margin-top:10px;font-size:14px;"></div>
     </div>
   </div>
 </div>
@@ -73,13 +68,16 @@ body { font-family: Arial, sans-serif; background:#f5f6fa; margin:0; padding:0; 
 const WALLET_ADDRESS = 'A9NBEQeCYzvqidFnh7UVZsBrW2T5df4cqnBjxCBQRJ88';
 const RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=225e1777-98e1-499f-9b14-945da0b99067'; 
 const refreshBtn = document.getElementById('refresh-btn');
+const toggleChartBtn = document.getElementById('toggleChartBtn');
 
 let showInCNY = false; // 是否显示 CNY
 let usdCnyRate = 0;    // USD → CNY 汇率
+let showDays = 7;      // 默认显示 7 天
+let chartInstance = null;
 
 refreshBtn.addEventListener('click', () => {
   fetchSolBalance();
-  drawBalanceCharts();
+  drawBalanceChart();
 });
 
 // --- 获取 USD→CNY 汇率 ---
@@ -151,37 +149,33 @@ async function fetchSolBalance() {
 }
 
 // --- 绘制折线图 ---
-async function drawBalanceCharts() {
+async function drawBalanceChart() {
   let data = null;
   try {
     const resp = await fetch('balances.json?' + Date.now());
     data = await resp.json();
   } catch(e){ console.warn("折线图数据加载失败", e); return; }
 
-  const drawChart = (canvasId, lastN, color, changeId) => {
-    const lastData = data.slice(-lastN);
-    const labels = lastData.map(d => d.date);
-    const values = lastData.map(d => parseFloat(d.sol).toFixed(3));
-    const ctx = document.getElementById(canvasId).getContext('2d');
-    if (window[canvasId + 'Instance']) window[canvasId + 'Instance'].destroy();
-    window[canvasId + 'Instance'] = new Chart(ctx, {
-      type: 'line',
-      data: { labels, datasets: [{ label: 'SOL余额', data: values, borderColor: color, fill: false, tension: 0.2 }] },
-      options: { scales: { y: { beginAtZero: false } } }
-    });
+  const lastData = data.slice(-showDays);
+  const labels = lastData.map(d => d.date);
+  const values = lastData.map(d => parseFloat(d.sol).toFixed(3));
+  const ctx = document.getElementById('balanceChart').getContext('2d');
 
-    if (values.length >= 2) {
-      const latest = parseFloat(values[values.length-1]);
-      const prev = parseFloat(values[values.length-2]);
-      const diffPercent = ((latest - prev) / prev * 100).toFixed(2);
-      document.getElementById(changeId).innerText = diffPercent >= 0
-        ? `📈 较昨日增加 ${diffPercent}%`
-        : `📉 较昨日减少 ${Math.abs(diffPercent)}%`;
-    }
-  };
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{ label: 'SOL余额', data: values, borderColor: '#3b82f6', fill: false, tension: 0.2 }] },
+    options: { scales: { y: { beginAtZero: false } } }
+  });
 
-  drawChart('balanceChart7', 7, '#3b82f6', 'ring-change-7');
-  drawChart('balanceChart30', 30, '#10b981', 'ring-change-30');
+  if (values.length >= 2) {
+    const latest = parseFloat(values[values.length-1]);
+    const prev = parseFloat(values[values.length-2]);
+    const diffPercent = ((latest - prev) / prev * 100).toFixed(2);
+    document.getElementById('ring-change').innerText = diffPercent >= 0
+      ? `📈 较昨日增加 ${diffPercent}%`
+      : `📉 较昨日减少 ${Math.abs(diffPercent)}%`;
+  }
 }
 
 // --- 点击余额切换 USD/CNY ---
@@ -190,17 +184,23 @@ document.getElementById('sol-balance').addEventListener('click', () => {
   fetchSolBalance();
 });
 
+// --- 切换 7天/30天 ---
+toggleChartBtn.addEventListener('click', () => {
+  showDays = (showDays === 7 ? 30 : 7);
+  toggleChartBtn.innerText = showDays === 7 ? "显示30天" : "显示7天";
+  drawBalanceChart();
+});
+
 // --- 初始化 ---
 fetchUSDCNY().then(() => {
   fetchSolBalance();
-  drawBalanceCharts();
+  drawBalanceChart();
 });
 setInterval(fetchSolBalance, 30000);
 
 // --- 夜间模式 ---
 function toggleDarkMode(){ document.body.classList.toggle('dark-mode'); }
 </script>
-
 
 </body>
 </html>
